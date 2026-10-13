@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Multi-View Room</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #070d18;
+      color: #e2e8f0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      padding: 4px;
+      margin: 0;
+    }
+
+    .room-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      background: #0b1220;
+      border: 1px solid #1e293b;
+      border-radius: 14px;
+      padding: 10px 12px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Top Controls Bar - Two Row Structured Layout */
+    .top-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #1e293b;
+    }
+
+    .top-bar-row1 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .view-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: #34d399;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulse-dot 1.5s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    .view-label {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .view-counter {
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: #94a3b8;
+      background: #1e293b;
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+    }
+
+    .lights-toggle-btn {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #fbbf24;
+      padding: 4px 10px;
+      border-radius: 7px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+
+    .lights-toggle-btn.off {
+      background: rgba(100, 116, 139, 0.2);
+      border-color: #475569;
+      color: #94a3b8;
+    }
+
+    .lights-toggle-btn:hover {
+      filter: brightness(1.2);
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+    }
+
+    /* Row 2: View Navigation Segmented Control */
+    .top-bar-row2 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .nav-btn {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f1f5f9;
+      padding: 6px 12px;
+      border-radius: 7px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .nav-btn:hover {
+      background: #334155;
+      border-color: #64748b;
+      color: #fff;
+    }
+
+    .nav-btn:active {
+      transform: scale(0.97);
+    }
+
+    .view-tabs {
+      display: flex;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 2px;
+      gap: 2px;
+      flex: 1;
+      justify-content: center;
+    }
+
+    .view-tab {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.74rem;
+      font-weight: 600;
+      padding: 5px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      flex: 1;
+      text-align: center;
+    }
+
+    .view-tab:hover {
+      color: #f8fafc;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .view-tab.active {
+      background: #2563eb;
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4);
+    }
+
+    /* Room Viewport Canvas */
+    .viewport {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1672 / 941;
+      min-height: 480px;
+      background: #020617;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .room-img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+      transition: filter 0.3s ease;
+    }
+
+    .room-img.dimmed {
+      filter: brightness(0.6) contrast(1.1);
+    }
+
+    /* Hotspots Layer */
+    .hotspots-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: auto;
+    }
+
+    .hotspot {
+      position: absolute;
+      border-radius: 6px;
+      cursor: pointer;
+      background: transparent;
+      border: 1.5px solid transparent;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-sizing: border-box;
+    }
+
+    .hotspot:hover {
+      background: rgba(56, 189, 248, 0.14);
+      border: 1.5px solid rgba(56, 189, 248, 0.8);
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.4), inset 0 0 10px rgba(56, 189, 248, 0.25);
+    }
+
+    .hotspot.active-highlight {
+      background: rgba(239, 68, 68, 0.2);
+      border: 2px solid #ef4444;
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+      animation: pulse-hotspot 1.4s infinite;
+    }
+
+    @keyframes pulse-hotspot {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+      70% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    /* Hover Tooltip */
+    .tooltip {
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(8px);
+      border: 1px solid #38bdf8;
+      color: #f8fafc;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      z-index: 60;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+    }
+
+    .tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 5px;
+      border-style: solid;
+      border-color: #38bdf8 transparent transparent transparent;
+    }
+
+    .hotspot:hover .tooltip {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(-50%) translateY(-2px);
+    }
+
+    /* Visual Overlays for Incidents */
+    .visual-overlay {
+      position: absolute;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    /* Cracked Glass Overlay (Mirror/Window) */
+    .crack-overlay {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      background: radial-gradient(circle at center, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.15) 25%, transparent 70%);
+      backdrop-filter: blur(1.5px);
+      border: 2px solid rgba(255, 255, 255, 0.65);
+      animation: shatter-flash 0.4s ease-out;
+    }
+
+    .crack-overlay svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.85));
+    }
+
+    @keyframes shatter-flash {
+      0% { opacity: 0; transform: scale(0.95); }
+      50% { opacity: 1; transform: scale(1.02); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* Flame Fire Overlay */
+    .fire-overlay {
+      position: absolute;
+      top: -20%;
+      left: 10%;
+      width: 80%;
+      height: 130%;
+      background: radial-gradient(ellipse at bottom, rgba(255, 69, 0, 0.88) 0%, rgba(255, 140, 0, 0.65) 35%, rgba(255, 215, 0, 0.35) 65%, transparent 85%);
+      mix-blend-mode: screen;
+      filter: blur(3px);
+      animation: flame-flicker 0.25s infinite alternate;
+      border-radius: 40% 40% 20% 20%;
+    }
+
+    @keyframes flame-flicker {
+      0% { transform: scale(0.97) translateY(2px); opacity: 0.85; }
+      100% { transform: scale(1.04) translateY(-3px); opacity: 1.0; }
+    }
+
+    /* Computer Vision Intruder Bounding Box */
+    .vision-bbox {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 2px solid #ef4444;
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.5), inset 0 0 10px rgba(239, 68, 68, 0.2);
+      animation: bbox-pulse 1.2s infinite;
+    }
+
+    .vision-tag {
+      position: absolute;
+      top: -24px;
+      left: -2px;
+      background: #ef4444;
+      color: #fff;
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    @keyframes bbox-pulse {
+      0% { border-color: #ef4444; }
+      50% { border-color: #fca5a5; }
+      100% { border-color: #ef4444; }
+    }
+
+    @keyframes intruder-pop {
+      0% { opacity: 0; transform: scale(0.92); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* Thermal Aura */
+    .thermal-hot {
+      position: absolute;
+      top: -15%;
+      left: -10%;
+      width: 120%;
+      height: 130%;
+      background: radial-gradient(circle, rgba(239, 68, 68, 0.4) 0%, rgba(249, 115, 22, 0.25) 45%, transparent 75%);
+      mix-blend-mode: screen;
+      animation: thermal-heat 1.5s infinite alternate;
+    }
+
+    .thermal-cold {
+      position: absolute;
+      top: -15%;
+      left: -10%;
+      width: 120%;
+      height: 130%;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.4) 0%, rgba(14, 165, 233, 0.25) 45%, transparent 75%);
+      mix-blend-mode: screen;
+      animation: thermal-heat 1.5s infinite alternate;
+    }
+
+    @keyframes thermal-heat {
+      0% { opacity: 0.6; transform: scale(0.96); }
+      100% { opacity: 0.95; transform: scale(1.04); }
+    }
+
+    /* Warning Gear / Vibration Marker */
+    .vibration-warning {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(234, 88, 12, 0.95);
+      border: 1px solid #fdba74;
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      white-space: nowrap;
+      box-shadow: 0 0 15px rgba(234, 88, 12, 0.7);
+      animation: vib-shake 0.3s infinite;
+    }
+
+    @keyframes vib-shake {
+      0% { transform: translate(-51%, -50%); }
+      50% { transform: translate(-49%, -50%); }
+      100% { transform: translate(-50%, -51%); }
+    }
+
+    /* Action Modal Dialog */
+    .modal-backdrop {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(3, 7, 18, 0.75);
+      backdrop-filter: blur(5px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      animation: modal-fade-in 0.2s ease-out;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    @keyframes modal-fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 440px;
+      padding: 18px 22px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 10px 10px -5px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transform: translateY(0);
+      animation: modal-pop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modal-pop {
+      from { transform: scale(0.92) translateY(8px); opacity: 0; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 8px;
+    }
+
+    .modal-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.3rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .modal-close:hover {
+      color: #fff;
+      background: #1e293b;
+    }
+
+    .modal-object-desc {
+      font-size: 0.82rem;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+
+    .actions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .action-item-btn {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f1f5f9;
+      padding: 10px 12px;
+      border-radius: 8px;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .action-item-btn:hover {
+      background: #273549;
+      border-color: #38bdf8;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+    }
+
+    .action-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .action-name {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .action-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #fff;
+    }
+
+    .action-desc {
+      font-size: 0.76rem;
+      color: #94a3b8;
+      line-height: 1.35;
+    }
+
+    .action-modal-confirm-view {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .confirm-box {
+      background: rgba(220, 38, 38, 0.1);
+      border: 1px solid rgba(220, 38, 38, 0.35);
+      padding: 12px 14px;
+      border-radius: 8px;
+    }
+
+    .confirm-box h4 {
+      color: #f87171;
+      font-size: 0.88rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .confirm-box p {
+      font-size: 0.8rem;
+      color: #cbd5e1;
+      line-height: 1.45;
+    }
+
+    .modal-actions-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      border-top: 1px solid #1e293b;
+      padding-top: 10px;
+    }
+
+    .btn-secondary {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-secondary:hover {
+      background: #334155;
+      color: #fff;
+    }
+
+    .btn-danger {
+      background: #dc2626;
+      border: none;
+      color: #fff;
+      padding: 7px 16px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 6px rgba(220, 38, 38, 0.4);
+    }
+
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+
+    /* Bottom helper note */
+    .bottom-hint {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.74rem;
+      color: #64748b;
+      padding: 3px 4px 0 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="room-container">
+
+    <!-- Top Navigation Bar -->
+    <div class="top-bar">
+      <!-- Row 1: Header Meta + Lights Toggle -->
+      <div class="top-bar-row1">
+        <div class="view-info">
+          <span class="live-badge"><span class="live-dot"></span> LIVE SIM</span>
+          <span class="view-label" id="current-view-name">View 1 — TV Wall</span>
+          <span class="view-counter" id="view-counter-text">View 1 of 4</span>
+        </div>
+        <button class="lights-toggle-btn" id="btn-lights" title="Toggle Ceiling Lights">💡 Lights: ON</button>
+      </div>
+
+      <!-- Row 2: View Navigation Control -->
+      <div class="top-bar-row2">
+        <button class="nav-btn" id="btn-prev" title="Previous View (Left Arrow)">◀ Prev</button>
+
+        <div class="view-tabs">
+          <button class="view-tab active" data-view="1">1 · TV Wall</button>
+          <button class="view-tab" data-view="2">2 · Window</button>
+          <button class="view-tab" data-view="3">3 · Sofa</button>
+          <button class="view-tab" data-view="4">4 · Entrance</button>
+        </div>
+
+        <button class="nav-btn" id="btn-next" title="Next View (Right Arrow)">Next ▶</button>
+      </div>
+    </div>
+
+    <!-- Main Viewport Canvas -->
+    <div class="viewport" id="viewport-box">
+      <img id="room-image" class="room-img" src="assets/Room View 1.png" alt="Smart Home Room View">
+
+      <!-- Dynamic Hotspots Layer -->
+      <div class="hotspots-layer" id="hotspots-layer"></div>
+
+      <!-- Visual Overlays Container -->
+      <div id="overlays-container"></div>
+    </div>
+
+    <!-- Bottom Status & Keyboard Hint -->
+    <div class="bottom-hint">
+      <span>💡 Hover over room objects (TV, Sofa, AC, Fan, Lights, Door, Camera, Windows) to inspect &amp; simulate incidents</span>
+      <span>⌨️ Use <b>◀ / ▶</b> Arrow Keys to navigate views</span>
+    </div>
+
+  </div>
+
+  <!-- Contextual Action Modal -->
+  <div class="modal-backdrop" id="action-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-title">
+          <span id="modal-icon">📺</span>
+          <span id="modal-object-name">Television</span>
+        </div>
+        <button class="modal-close" id="modal-close-btn">&times;</button>
+      </div>
+
+      <p class="modal-object-desc" id="modal-object-desc">
+        Monitored smart home fixture with integrated multimodal perception.
+      </p>
+
+      <!-- Selection View: Choose Action -->
+      <div id="modal-selection-view">
+        <div style="font-size:0.75rem; font-weight:700; color:#cbd5e1; margin-bottom:6px;">AVAILABLE SIMULATIONS:</div>
+        <div class="actions-list" id="modal-actions-list">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Confirmation View -->
+      <div class="action-modal-confirm-view" id="modal-confirm-view">
+        <div class="confirm-box">
+          <h4 id="confirm-action-title">Confirm Incident Simulation</h4>
+          <p id="confirm-action-desc">
+            This will trigger sensor spikes, audio playback, image evidence, and late fusion analysis.
+          </p>
+        </div>
+        <div class="modal-actions-footer">
+          <button class="btn-secondary" id="confirm-cancel-btn">Cancel</button>
+          <button class="btn-danger" id="confirm-submit-btn">⚠️ Confirm &amp; Simulate</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Streamlit Component Messaging Protocol
+    const Streamlit = {
+      setComponentReady: function() {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:componentReady",
+          apiVersion: 1
+        }, "*");
+      },
+      setFrameHeight: function(h) {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setFrameHeight",
+          height: h || document.body.scrollHeight
+        }, "*");
+      },
+      setComponentValue: function(value) {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: value,
+          dataType: "json"
+        }, "*");
+      }
+    };
+
+    // State
+    let currentView = 1;
+    let lightsOn = true;
+    let activeOverlay = null;
+    let selectedObject = null;
+    let pendingAction = null;
+    let lastLocalNavTime = 0;
+
+    // View Definitions
+    const VIEWS = {
+      1: {
+        id: 1,
+        name: "View 1 — TV Wall",
+        counter: "View 1 of 4",
+        src: "assets/Room View 1.png"
+      },
+      2: {
+        id: 2,
+        name: "View 2 — Window Side",
+        counter: "View 2 of 4",
+        src: "assets/Room View 2.png"
+      },
+      3: {
+        id: 3,
+        name: "View 3 — Sofa & Mirror",
+        counter: "View 3 of 4",
+        src: "assets/Room View 3.png"
+      },
+      4: {
+        id: 4,
+        name: "View 4 — Entrance & Shelf",
+        counter: "View 4 of 4",
+        srcNormal: "assets/Room View 4.png",
+        srcLightsOff: "assets/Room View 4 lights off.png"
+      }
+    };
+
+    // Hotspot Definitions (Percentages x, y, w, h normalized)
+    const HOTSPOTS_DATA = {
+      1: [
+        { name: "Ceiling fan", x: 36, y: 0, w: 27, h: 19, icon: "💨", z: 5, tip: "Ceiling Fan (Motor diagnostics)", actions: ["simulate_fan_fault"] },
+        { name: "Ceiling lights", x: 28, y: 2, w: 45, h: 17, icon: "💡", z: 2, tip: "Ceiling Lights (Smart lighting control)", actions: ["toggle_lights"] },
+        { name: "Air conditioner", x: 27, y: 20, w: 14, h: 9, icon: "❄️", z: 4, tip: "Air Conditioner (HVAC thermal monitoring)", actions: ["simulate_extreme_temp", "simulate_freeze_temp"] },
+        { name: "Television", x: 39, y: 34, w: 20, h: 21, icon: "📺", z: 4, tip: "Smart TV (Electrical & flame monitoring)", actions: ["simulate_tv_fire", "simulate_tv_fault"] },
+        { name: "Glass coffee table", x: 35, y: 65, w: 28, h: 14, icon: "☕", z: 4, tip: "Glass Coffee Table (Impact & break sensor)", actions: ["simulate_table_impact", "simulate_glass_break"] },
+        { name: "Sofa", x: 5, y: 73, w: 90, h: 27, icon: "🛋️", z: 3, tip: "Sofa (Occupant fall & motion sensor)", actions: ["simulate_sofa_fall", "simulate_sofa_motion"] },
+        { name: "Entrance door", x: 83, y: 17, w: 9, h: 57, icon: "🚪", z: 4, tip: "Entrance Door (Door breach & knock sensor)", actions: ["simulate_forced_entry", "simulate_loud_knock"] },
+        { name: "CCTV camera", x: 79, y: 16, w: 3.2, h: 5.5, icon: "📹", z: 6, tip: "CCTV Dome Camera (AI Vision surveillance)", actions: ["inspect_intruder"] },
+        { name: "Windows", x: 0, y: 12, w: 23, h: 76, icon: "🪟", z: 3, tip: "Balcony Glass Window (Acoustic break & entry)", actions: ["simulate_glass_break", "simulate_forced_entry"] }
+      ],
+      2: [
+        { name: "Ceiling fan", x: 36, y: 0, w: 27, h: 19, icon: "💨", z: 5, tip: "Ceiling Fan (Motor diagnostics)", actions: ["simulate_fan_fault"] },
+        { name: "Ceiling lights", x: 28, y: 2, w: 44, h: 16, icon: "💡", z: 2, tip: "Ceiling Lights (Smart lighting control)", actions: ["toggle_lights"] },
+        { name: "CCTV camera", x: 20, y: 11, w: 3, h: 6, icon: "📹", z: 6, tip: "CCTV Camera (Perimeter surveillance)", actions: ["inspect_intruder"] },
+        { name: "Wall shelf", x: 6, y: 17, w: 17, h: 25, icon: "📚", z: 4, tip: "Wall Shelf (Fall impact sensor)", actions: ["simulate_object_fall"] },
+        { name: "Entrance door", x: 0, y: 7, w: 4, h: 76, icon: "🚪", z: 4, tip: "Entrance Door (Door contact sensor)", actions: ["simulate_forced_entry"] },
+        { name: "Sofa", x: 8, y: 50, w: 33, h: 40, icon: "🛋️", z: 3, tip: "Sofa (Living room motion zone)", actions: ["simulate_sofa_fall", "simulate_sofa_motion"] },
+        { name: "Glass coffee table", x: 43, y: 60, w: 17, h: 23, icon: "☕", z: 4, tip: "Glass Coffee Table (Impact & break sensor)", actions: ["simulate_table_impact", "simulate_glass_break"] },
+        { name: "Windows", x: 28, y: 18, w: 39, h: 45, icon: "🪟", z: 3, tip: "Balcony Window & Door (Acoustic break sensor)", actions: ["simulate_glass_break", "simulate_forced_entry"] },
+        { name: "Air conditioner", x: 70, y: 12, w: 9, h: 13, icon: "❄️", z: 4, tip: "Air Conditioner (HVAC thermal monitoring)", actions: ["simulate_extreme_temp", "simulate_freeze_temp"] },
+        { name: "Television", x: 76, y: 22, w: 14, h: 35, icon: "📺", z: 4, tip: "Television (Side view, fault & fire)", actions: ["simulate_tv_fire", "simulate_tv_fault"] }
+      ],
+      3: [
+        { name: "Mirror", x: 3, y: 12, w: 12, h: 55, icon: "🪞", z: 4, tip: "Full-Length Mirror (Acoustic & vibration break)", actions: ["simulate_glass_break"] },
+        { name: "Entrance door", x: 27, y: 23, w: 12, h: 37, icon: "🚪", z: 4, tip: "Entrance Door (Door breach & knock)", actions: ["simulate_forced_entry", "simulate_loud_knock"] },
+        { name: "Ceiling fan", x: 36, y: 0, w: 27, h: 19, icon: "💨", z: 5, tip: "Ceiling Fan (Motor diagnostics)", actions: ["simulate_fan_fault"] },
+        { name: "Ceiling lights", x: 29, y: 2, w: 43, h: 15, icon: "💡", z: 2, tip: "Ceiling Lights (Smart lighting control)", actions: ["toggle_lights"] },
+        { name: "CCTV camera", x: 66, y: 15, w: 3, h: 6, icon: "📹", z: 6, tip: "CCTV Camera (Indoor surveillance)", actions: ["inspect_intruder"] },
+        { name: "Wall shelf", x: 42, y: 25, w: 24, h: 20, icon: "📚", z: 4, tip: "Wall Shelf (Impact sensor)", actions: ["simulate_object_fall"] },
+        { name: "Sofa", x: 26, y: 52, w: 47, h: 27, icon: "🛋️", z: 3, tip: "Sofa (Front view, fall & motion)", actions: ["simulate_sofa_fall", "simulate_sofa_motion"] },
+        { name: "Glass coffee table", x: 28, y: 70, w: 43, h: 30, icon: "☕", z: 4, tip: "Glass Coffee Table (Impact & break sensor)", actions: ["simulate_table_impact", "simulate_glass_break"] },
+        { name: "Windows", x: 77, y: 4, w: 23, h: 82, icon: "🪟", z: 3, tip: "Balcony Glass Doors (Perimeter sensor)", actions: ["simulate_glass_break", "simulate_forced_entry"] }
+      ],
+      4: [
+        { name: "Television", x: 0, y: 16, w: 16, h: 42, icon: "📺", z: 4, tip: "Smart TV (Angled view, electrical fault & fire)", actions: ["simulate_tv_fire", "simulate_tv_fault"] },
+        { name: "CCTV camera", x: 25, y: 15, w: 3, h: 6, icon: "📹", z: 6, tip: "CCTV Camera (Corridor surveillance)", actions: ["inspect_intruder"] },
+        { name: "Entrance door", x: 29, y: 22, w: 11, h: 42, icon: "🚪", z: 4, tip: "Entrance Door (Door breach & knock)", actions: ["simulate_forced_entry", "simulate_loud_knock"] },
+        { name: "Ceiling fan", x: 36, y: 0, w: 27, h: 19, icon: "💨", z: 5, tip: "Ceiling Fan (Motor diagnostics)", actions: ["simulate_fan_fault"] },
+        { name: "Ceiling lights", x: 30, y: 1, w: 42, h: 16, icon: "💡", z: 2, tip: "Ceiling Lights (Smart lighting control)", actions: ["toggle_lights"] },
+        { name: "Mirror", x: 47, y: 25, w: 14, h: 31, icon: "🪞", z: 4, tip: "Wall Mirror (Reflecting window & sofa)", actions: ["simulate_glass_break"] },
+        { name: "Wall shelf", x: 80, y: 16, w: 20, h: 26, icon: "📚", z: 4, tip: "Wall Shelf with Plants (Fall impact sensor)", actions: ["simulate_object_fall"] },
+        { name: "Glass coffee table", x: 35, y: 62, w: 23, h: 29, icon: "☕", z: 4, tip: "Glass Coffee Table (Foreground)", actions: ["simulate_table_impact", "simulate_glass_break"] },
+        { name: "Sofa", x: 58, y: 50, w: 42, h: 50, icon: "🛋️", z: 3, tip: "Sofa (Seating area motion sensor)", actions: ["simulate_sofa_fall", "simulate_sofa_motion"] }
+      ]
+    };
+
+    // Actions Detail Catalog
+    const ACTIONS_DETAILS = {
+      "simulate_glass_break": {
+        title: "Simulate Glass Break",
+        badge: "Critical Incident",
+        badgeColor: "#dc2626",
+        icon: "🔨",
+        desc: "Generates high vibration spike (86/100) and high-frequency acoustic shockwave (>2 kHz).",
+        destructive: true
+      },
+      "simulate_forced_entry": {
+        title: "Simulate Forced Entry / Intrusion",
+        badge: "Critical Incident",
+        badgeColor: "#dc2626",
+        icon: "🚨",
+        desc: "Triggers sustained motion sensor activity and AI camera person detection.",
+        destructive: true
+      },
+      "inspect_intruder": {
+        title: "Trigger Intrusion Scenario (CCTV)",
+        badge: "Critical Incident",
+        badgeColor: "#dc2626",
+        icon: "📹",
+        desc: "Engages vision detection (HOG/SVM) and motion sensors.",
+        destructive: false
+      },
+      "simulate_tv_fire": {
+        title: "Simulate Fire Incident",
+        badge: "Critical Incident",
+        badgeColor: "#dc2626",
+        icon: "🔥",
+        desc: "Triggers thermal spike (82 °C) and flame-color HSV pixel analysis.",
+        destructive: true
+      },
+      "simulate_tv_fault": {
+        title: "Simulate Electrical Fault",
+        badge: "Equipment Warning",
+        badgeColor: "#ea580c",
+        icon: "⚡",
+        desc: "Generates elevated vibration and audio volume with harmonic buzz.",
+        destructive: false
+      },
+      "simulate_fan_fault": {
+        title: "Simulate Fan Bearing Fault",
+        badge: "Equipment Warning",
+        badgeColor: "#ea580c",
+        icon: "⚙️",
+        desc: "Triggers motor vibration spike (88/100) and continuous 120 Hz motor hum.",
+        destructive: false
+      },
+      "simulate_extreme_temp": {
+        title: "Simulate HVAC Overheat (78 °C)",
+        badge: "Warning",
+        badgeColor: "#ea580c",
+        icon: "🌡️",
+        desc: "Triggers thermal threshold violation (>70 °C safety cutoff).",
+        destructive: false
+      },
+      "simulate_freeze_temp": {
+        title: "Simulate Freeze Condition (-6 °C)",
+        badge: "Warning",
+        badgeColor: "#0284c7",
+        icon: "🥶",
+        desc: "Triggers sub-zero low temperature threshold (<5 °C).",
+        destructive: false
+      },
+      "simulate_table_impact": {
+        title: "Simulate Heavy Impact / Fall",
+        badge: "Critical Incident",
+        badgeColor: "#dc2626",
+        icon: "💥",
+        desc: "Produces sudden motion delta (86) and low-frequency audio thump.",
+        destructive: true
+      },
+      "simulate_sofa_fall": {
+        title: "Simulate Occupant Fall on Sofa",
+        badge: "Critical Incident",
+        badgeColor: "#dc2626",
+        icon: "🧍‍♂️",
+        desc: "Generates motion delta shock and low-frequency thump acoustic waveform.",
+        destructive: true
+      },
+      "simulate_sofa_motion": {
+        title: "Simulate Regular Motion",
+        badge: "Activity Event",
+        badgeColor: "#16a34a",
+        icon: "🚶",
+        desc: "Simulates residential activity with motion sensor active (no alarm).",
+        destructive: false
+      },
+      "simulate_object_fall": {
+        title: "Simulate Falling Object from Shelf",
+        badge: "Critical Incident",
+        badgeColor: "#dc2626",
+        icon: "📦",
+        desc: "Simulates item impact with sharp motion delta and audio thump.",
+        destructive: true
+      },
+      "simulate_loud_knock": {
+        title: "Simulate Loud Noise at Door",
+        badge: "Warning",
+        badgeColor: "#ea580c",
+        icon: "🔊",
+        desc: "Triggers loud acoustic burst combined with active motion at door.",
+        destructive: false
+      },
+      "toggle_lights": {
+        title: "Toggle Lights On / Off",
+        badge: "Smart Control",
+        badgeColor: "#0284c7",
+        icon: "💡",
+        desc: "Switches smart home ceiling lights state.",
+        destructive: false
+      }
+    };
+
+    // DOM Elements
+    const imgEl = document.getElementById("room-image");
+    const viewNameEl = document.getElementById("current-view-name");
+    const viewCounterEl = document.getElementById("view-counter-text");
+    const hotspotsLayer = document.getElementById("hotspots-layer");
+    const overlaysContainer = document.getElementById("overlays-container");
+    const lightsBtn = document.getElementById("btn-lights");
+    const tabs = document.querySelectorAll(".view-tab");
+
+    // Modal DOM Elements
+    const modal = document.getElementById("action-modal");
+    const modalIcon = document.getElementById("modal-icon");
+    const modalObjName = document.getElementById("modal-object-name");
+    const modalDesc = document.getElementById("modal-object-desc");
+    const modalSelectionView = document.getElementById("modal-selection-view");
+    const modalActionsList = document.getElementById("modal-actions-list");
+    const modalConfirmView = document.getElementById("modal-confirm-view");
+    const confirmTitle = document.getElementById("confirm-action-title");
+    const confirmDesc = document.getElementById("confirm-action-desc");
+    const confirmSubmitBtn = document.getElementById("confirm-submit-btn");
+    const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
+    const modalCloseBtn = document.getElementById("modal-close-btn");
+
+    // Render Room View
+    function renderView(viewNum) {
+      currentView = viewNum;
+      const viewData = VIEWS[viewNum];
+
+      // Image selection logic (normal vs lights off in view 4)
+      let src = viewData.src;
+      if (viewNum === 4) {
+        src = lightsOn ? viewData.srcNormal : viewData.srcLightsOff;
+      }
+      imgEl.src = src;
+
+      // Apply subtle ambient filter if lights off on views 1-3
+      if (!lightsOn && viewNum !== 4) {
+        imgEl.classList.add("dimmed");
+      } else {
+        imgEl.classList.remove("dimmed");
+      }
+
+      viewNameEl.textContent = viewData.name;
+      viewCounterEl.textContent = viewData.counter;
+
+      // Update Tab Styles
+      tabs.forEach(tab => {
+        const tNum = parseInt(tab.getAttribute("data-view"));
+        if (tNum === viewNum) {
+          tab.classList.add("active");
+        } else {
+          tab.classList.remove("active");
+        }
+      });
+
+      // Render Hotspots for this View
+      renderHotspots(viewNum);
+
+      // Render Overlays for this View
+      renderOverlays();
+
+      // Notify frame height
+      notifyHeight();
+    }
+
+    // Render Hotspots
+    function renderHotspots(viewNum) {
+      hotspotsLayer.innerHTML = "";
+      const spots = HOTSPOTS_DATA[viewNum] || [];
+
+      spots.forEach(spot => {
+        const el = document.createElement("div");
+        el.className = "hotspot";
+        el.style.left = spot.x + "%";
+        el.style.top = spot.y + "%";
+        el.style.width = spot.w + "%";
+        el.style.height = spot.h + "%";
+        el.style.zIndex = spot.z || 3;
+
+        // Check if currently active highlight
+        if (activeOverlay && activeOverlay.object === spot.name) {
+          el.classList.add("active-highlight");
+        }
+
+        // Tooltip
+        const tipEl = document.createElement("div");
+        tipEl.className = "tooltip";
+        tipEl.textContent = `${spot.icon} ${spot.name}`;
+        el.appendChild(tipEl);
+
+        // Click Handler
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openObjectModal(spot);
+        });
+
+        hotspotsLayer.appendChild(el);
+      });
+    }
+
+    // Door positions for intruder standing realistically near entrance door per view
+    const INTRUDER_DOOR_POSITIONS = {
+      1: { left: 76.5, top: 23.5, width: 18.5, height: 50.5 },
+      2: { left: 1.0,  top: 19.5, width: 23.5, height: 63.5 },
+      3: { left: 26.5, top: 27.5, width: 12.0, height: 32.5 },
+      4: { left: 27.5, top: 26.5, width: 14.0, height: 37.5 }
+    };
+
+    // Render Overlays
+    function renderOverlays() {
+      overlaysContainer.innerHTML = "";
+      if (!activeOverlay) return;
+
+      const isIntrusion = (activeOverlay.type === "bounding_box" || activeOverlay.type === "intruder");
+      const spots = HOTSPOTS_DATA[currentView] || [];
+      const spot = spots.find(s => s.name === activeOverlay.object) || (isIntrusion ? spots.find(s => s.name === "Entrance door") : null);
+
+      if (spot) {
+        const overlayBox = document.createElement("div");
+        overlayBox.className = "visual-overlay";
+        overlayBox.style.left = spot.x + "%";
+        overlayBox.style.top = spot.y + "%";
+        overlayBox.style.width = spot.w + "%";
+        overlayBox.style.height = spot.h + "%";
+        overlayBox.style.zIndex = (spot.z || 4) + 1;
+
+        if (activeOverlay.type === "crack") {
+          overlayBox.innerHTML = `
+            <div class="crack-overlay">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                <path d="M50 50 L20 15 M50 50 L80 18 M50 50 L85 75 M50 50 L22 80 M50 50 L50 95 M50 50 L5 48 M50 50 L95 52 M35 32 L45 10 M65 34 L78 30 M70 65 L92 82 M35 68 L15 88" stroke="#ffffff" stroke-width="2" fill="none" opacity="0.95" />
+                <circle cx="50" cy="50" r="4" fill="#ffffff" opacity="0.95" />
+              </svg>
+            </div>
+          `;
+          overlaysContainer.appendChild(overlayBox);
+        } else if (activeOverlay.type === "fire") {
+          overlayBox.innerHTML = `<div class="fire-overlay"></div>`;
+          overlaysContainer.appendChild(overlayBox);
+        } else if (isIntrusion) {
+          overlayBox.innerHTML = `
+            <div class="vision-bbox" style="border: 2px dashed rgba(239, 68, 68, 0.85); background: rgba(239, 68, 68, 0.08);">
+              <span class="vision-tag" style="background:#dc2626;">PERIMETER BREACH: ${spot.name.toUpperCase()}</span>
+            </div>
+          `;
+          overlaysContainer.appendChild(overlayBox);
+        } else if (activeOverlay.type === "thermal_hot") {
+          overlayBox.innerHTML = `
+            <div class="thermal-hot"></div>
+            <span class="vision-tag" style="background:#ea580c; top:-20px;">OVERHEAT: 78 °C</span>
+          `;
+          overlaysContainer.appendChild(overlayBox);
+        } else if (activeOverlay.type === "thermal_cold") {
+          overlayBox.innerHTML = `
+            <div class="thermal-cold"></div>
+            <span class="vision-tag" style="background:#0284c7; top:-20px;">FREEZE ALERT: -6 °C</span>
+          `;
+          overlaysContainer.appendChild(overlayBox);
+        } else if (activeOverlay.type === "warning_gear") {
+          overlayBox.innerHTML = `
+            <div class="vibration-warning">⚠️ VIBRATION 88/100</div>
+          `;
+          overlaysContainer.appendChild(overlayBox);
+        } else if (activeOverlay.type === "impact") {
+          overlayBox.innerHTML = `
+            <div class="vibration-warning" style="background:#dc2626;">💥 SUDDEN IMPACT (DELTA 86)</div>
+          `;
+          overlaysContainer.appendChild(overlayBox);
+        }
+      }
+
+      // If intrusion event, place intruder realistically near the entrance door scaled to perspective
+      if (isIntrusion) {
+        const doorPos = INTRUDER_DOOR_POSITIONS[currentView] || INTRUDER_DOOR_POSITIONS[1];
+        const intruderBox = document.createElement("div");
+        intruderBox.className = "room-intruder-overlay";
+        intruderBox.style.cssText = `
+          position: absolute;
+          left: ${doorPos.left}%;
+          top: ${doorPos.top}%;
+          width: ${doorPos.width}%;
+          height: ${doorPos.height}%;
+          z-index: 35;
+          pointer-events: none;
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+          animation: intruder-pop 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        `;
+        intruderBox.innerHTML = `
+          <div style="position:relative; width:100%; height:100%; display:flex; align-items:flex-end; justify-content:center;">
+            <!-- Intruder figure standing near door -->
+            <img src="assets/intruder.png" 
+                 alt="Intruder" 
+                 style="width:100%; height:100%; object-fit:contain; object-position:bottom center; filter:drop-shadow(0 10px 18px rgba(0,0,0,0.7));" />
+            
+            <!-- AI Computer Vision Bounding Box Framing Person -->
+            <div style="position:absolute; top:1%; left:2%; width:96%; height:98%; border:2px solid #22c55e; border-radius:4px; box-shadow:0 0 14px rgba(34,197,94,0.45); pointer-events:none;">
+              <!-- Tech corner brackets -->
+              <div style="position:absolute; top:-2px; left:-2px; width:9px; height:9px; border-top:3px solid #38bdf8; border-left:3px solid #38bdf8;"></div>
+              <div style="position:absolute; top:-2px; right:-2px; width:9px; height:9px; border-top:3px solid #38bdf8; border-right:3px solid #38bdf8;"></div>
+              <div style="position:absolute; bottom:-2px; left:-2px; width:9px; height:9px; border-bottom:3px solid #38bdf8; border-left:3px solid #38bdf8;"></div>
+              <div style="position:absolute; bottom:-2px; right:-2px; width:9px; height:9px; border-bottom:3px solid #38bdf8; border-right:3px solid #38bdf8;"></div>
+              
+              <!-- AI Tag Badge -->
+              <div style="position:absolute; top:-22px; left:50%; transform:translateX(-50%); background:#22c55e; color:#0b1220; font-size:10px; font-weight:800; padding:2px 8px; border-radius:3px; white-space:nowrap; letter-spacing:0.04em; box-shadow:0 2px 8px rgba(0,0,0,0.5);">
+                INTRUDER [96.8%]
+              </div>
+            </div>
+          </div>
+        `;
+        overlaysContainer.appendChild(intruderBox);
+      }
+    }
+
+    // Open Action Modal
+    function openObjectModal(spot) {
+      selectedObject = spot;
+      modalIcon.textContent = spot.icon;
+      modalObjName.textContent = spot.name;
+      modalDesc.textContent = spot.tip;
+
+      // Populate Actions
+      modalActionsList.innerHTML = "";
+      spot.actions.forEach(actId => {
+        const act = ACTIONS_DETAILS[actId];
+        if (!act) return;
+
+        const btn = document.createElement("button");
+        btn.className = "action-item-btn";
+        btn.innerHTML = `
+          <div class="action-top">
+            <span class="action-name">${act.icon} ${act.title}</span>
+            <span class="action-badge" style="background:${act.badgeColor};">${act.badge}</span>
+          </div>
+          <div class="action-desc">${act.desc}</div>
+        `;
+
+        btn.addEventListener("click", () => {
+          handleActionChosen(actId, act);
+        });
+
+        modalActionsList.appendChild(btn);
+      });
+
+      // Show Selection View, Hide Confirm View
+      modalSelectionView.style.display = "block";
+      modalConfirmView.style.display = "none";
+      modal.classList.add("open");
+    }
+
+    // Handle Action Chosen
+    function handleActionChosen(actId, act) {
+      if (actId === "toggle_lights") {
+        toggleLights();
+        closeModal();
+        triggerSimulationToPython(selectedObject.name, actId);
+        return;
+      }
+
+      if (act.destructive) {
+        pendingAction = { id: actId, details: act };
+        confirmTitle.textContent = `Confirm: ${act.title}`;
+        confirmDesc.textContent = `${act.desc} This will trigger simulated sensor readings, audio playback, image evidence, and late fusion analysis for ${selectedObject.name}.`;
+        modalSelectionView.style.display = "none";
+        modalConfirmView.style.display = "flex";
+      } else {
+        closeModal();
+        triggerSimulationToPython(selectedObject.name, actId);
+      }
+    }
+
+    // Confirm Submission
+    confirmSubmitBtn.addEventListener("click", () => {
+      if (pendingAction && selectedObject) {
+        const actId = pendingAction.id;
+        closeModal();
+        triggerSimulationToPython(selectedObject.name, actId);
+      }
+    });
+
+    confirmCancelBtn.addEventListener("click", () => {
+      modalSelectionView.style.display = "block";
+      modalConfirmView.style.display = "none";
+      pendingAction = null;
+    });
+
+    function closeModal() {
+      modal.classList.remove("open");
+      pendingAction = null;
+    }
+
+    modalCloseBtn.addEventListener("click", closeModal);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    // SFX Player helper for action options
+    function playActionSfx(actionId) {
+      if (!actionId) return;
+      try {
+        const audio = new Audio("sfx/" + actionId + ".wav");
+        audio.volume = 0.9;
+        const p = audio.play();
+        if (p !== undefined) {
+          p.catch(e => { /* Browser autoplay policy catch */ });
+        }
+      } catch (err) {
+        console.warn("SFX audio playback:", err);
+      }
+    }
+
+    // Send Simulation to Python Backend
+    function triggerSimulationToPython(objectName, actionId) {
+      playActionSfx(actionId);
+      Streamlit.setComponentValue({
+        event: "trigger_action",
+        object: objectName,
+        action: actionId,
+        view: currentView,
+        lightsOn: lightsOn,
+        time: Date.now()
+      });
+    }
+
+    // Toggle Lights
+    function toggleLights() {
+      lightsOn = !lightsOn;
+      updateLightsUI();
+      renderView(currentView);
+    }
+
+    function updateLightsUI() {
+      if (lightsOn) {
+        lightsBtn.className = "lights-toggle-btn";
+        lightsBtn.textContent = "💡 Lights: ON";
+      } else {
+        lightsBtn.className = "lights-toggle-btn off";
+        lightsBtn.textContent = "🌑 Lights: OFF";
+      }
+    }
+
+    lightsBtn.addEventListener("click", () => {
+      toggleLights();
+      triggerSimulationToPython("Ceiling lights", "toggle_lights");
+    });
+
+    // Navigation Controls
+    function nextView() {
+      let next = currentView + 1;
+      if (next > 4) next = 1;
+      lastLocalNavTime = Date.now();
+      renderView(next);
+      Streamlit.setComponentValue({
+        event: "change_view",
+        view: next,
+        time: Date.now()
+      });
+    }
+
+    function prevView() {
+      let prev = currentView - 1;
+      if (prev < 1) prev = 4;
+      lastLocalNavTime = Date.now();
+      renderView(prev);
+      Streamlit.setComponentValue({
+        event: "change_view",
+        view: prev,
+        time: Date.now()
+      });
+    }
+
+    document.getElementById("btn-next").addEventListener("click", nextView);
+    document.getElementById("btn-prev").addEventListener("click", prevView);
+
+    tabs.forEach(tab => {
+      tab.addEventListener("click", () => {
+        const v = parseInt(tab.getAttribute("data-view"));
+        lastLocalNavTime = Date.now();
+        renderView(v);
+        Streamlit.setComponentValue({
+          event: "change_view",
+          view: v,
+          time: Date.now()
+        });
+      });
+    });
+
+    // Keyboard Arrow Navigation
+    window.addEventListener("keydown", (e) => {
+      if (modal.classList.contains("open")) {
+        if (e.key === "Escape") closeModal();
+        return;
+      }
+      if (e.key === "ArrowRight") {
+        nextView();
+      } else if (e.key === "ArrowLeft") {
+        prevView();
+      }
+    });
+
+    // Listen for incoming render events from Streamlit Python
+    window.addEventListener("message", (event) => {
+      if (event.data && event.data.type === "streamlit:render") {
+        const args = event.data.args || {};
+        let needsRender = false;
+
+        // Block stale echo renders within 1500ms of user-initiated navigation
+        const isRecentLocalNav = (Date.now() - lastLocalNavTime) < 1500;
+        if (args.current_view && args.current_view !== currentView && !isRecentLocalNav) {
+          currentView = args.current_view;
+          needsRender = true;
+        }
+
+        if (typeof args.lights_on === "boolean" && args.lights_on !== lightsOn) {
+          lightsOn = args.lights_on;
+          updateLightsUI();
+          needsRender = true;
+        }
+
+        const newOverlayStr = JSON.stringify(args.visual_overlay || null);
+        const currOverlayStr = JSON.stringify(activeOverlay || null);
+        if (newOverlayStr !== currOverlayStr) {
+          activeOverlay = args.visual_overlay;
+          needsRender = true;
+        }
+
+        // Only re-render when an actual state property changed
+        if (needsRender) {
+          renderView(currentView);
+        }
+      }
+    });
+
+    // Dynamic Responsive Frame Height Observer
+    function notifyHeight() {
+      const container = document.querySelector('.room-container');
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const h = Math.max(540, Math.ceil(rect.height + 20));
+      Streamlit.setFrameHeight(h);
+    }
+
+    const containerEl = document.querySelector('.room-container');
+    if (containerEl && window.ResizeObserver) {
+      const resizeObserver = new ResizeObserver(() => {
+        notifyHeight();
+      });
+      resizeObserver.observe(containerEl);
+    }
+    window.addEventListener('resize', notifyHeight);
+    window.addEventListener('load', notifyHeight);
+    if (imgEl) {
+      imgEl.addEventListener('load', notifyHeight);
+    }
+
+    // Initial Setup
+    renderView(1);
+    updateLightsUI();
+    Streamlit.setComponentReady();
+    notifyHeight();
+    setTimeout(notifyHeight, 150);
+  </script>
+</body>
+</html>
